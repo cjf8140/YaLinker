@@ -82,7 +82,7 @@ function createLinkButton(label, url) {
     linkButton.textContent = label;
     linkButton.target = "_blank"; // 새 탭에서 열기
     linkButton.style.display = "inline-block";
-    linkButton.style.marginTop = "-10px";
+    linkButton.style.marginTop = "-5px";
     linkButton.style.marginRight = "10px"; // 버튼 간격 추가
     linkButton.style.marginBottom = "10px"; // 버튼 간격 추가
     linkButton.style.padding = "8px 12px";
