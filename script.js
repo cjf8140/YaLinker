@@ -62,9 +62,14 @@ function sendMessage() {
             const asmrLinkUrl = `https://asmr.one/works?keyword=rj${rjNumber}`;
             const asmrLinkButton = createLinkButton("👂", asmrLinkUrl);
 
+
+            const simyaLinkUrl = `https://arca.live/b/simya?target=all&keyword=rj${rjNumber}`;
+            const simyaLinkButton = createLinkButton("🌑", simyaLinkUrl);
+
             // 링크 버튼을 메시지 아래에 추가
             outputField.appendChild(dlsiteLinkButton);
             outputField.appendChild(asmrLinkButton);
+            outputField.appendChild(simyaLinkButton);
         }
 
         // 스크롤을 아래로 이동
