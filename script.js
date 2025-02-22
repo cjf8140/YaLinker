@@ -22,8 +22,21 @@ function isBase64(str) {
     if (!base64Pattern.test(str)) {
         return false;
     }
+
     try {
-        return btoa(atob(str)) === str;
+        // Base64 디코딩
+        const decoded = atob(str);
+
+        // 디코딩된 메시지가 정상적인 텍스트인지 확인
+        // 예: ASCII 범위 안에 있는지 체크
+        for (let i = 0; i < decoded.length; i++) {
+            if (decoded.charCodeAt(i) < 32 || decoded.charCodeAt(i) > 126) {
+                // 제어 문자나 비정상적인 문자가 포함되면 유효한 메시지가 아님
+                return false;
+            }
+        }
+
+        return true;
     } catch (e) {
         return false;
     }
@@ -40,6 +53,7 @@ function sendMessage() {
 
         // 원본 메시지 출력
         const messageElement = document.createElement("div");
+        messageElement.classList.add("message"); // 클릭 시 자동 포커싱 방지
         messageElement.textContent = message;
         messageElement.style.marginBottom = "10px";
         messageElement.style.padding = "10px";
@@ -55,31 +69,40 @@ function sendMessage() {
                 // 🔓 버튼 (토글 버튼)
                 const toggleButton = document.createElement("button");
                 toggleButton.textContent = "🔓";
-                toggleButton.style.marginBottom = "5px";
+
+                toggleButton.style.marginTop = "-5px";
+                toggleButton.style.marginRight = "10px"; // 버튼 간격 추가
+                toggleButton.style.marginBottom = "10px"; // 버튼 간격 추가
                 toggleButton.style.padding = "8px 12px";
-                toggleButton.style.backgroundColor = "#4baef3";
+                toggleButton.style.backgroundColor = "#83e079";
                 toggleButton.style.color = "white";
+                toggleButton.style.cursor = "pointer";
                 toggleButton.style.border = "none";
                 toggleButton.style.borderRadius = "4px";
-                toggleButton.style.cursor = "pointer";
+                toggleButton.style.textDecoration = "none";
+                toggleButton.style.fontSize = "14px";
                 toggleButton.style.transition = "background-color 0.2s ease";
 
                 // 디코딩된 메시지 (초기에는 숨김)
                 const decodedElement = document.createElement("div");
+                decodedElement.classList.add("message"); // 클릭 시 자동 포커싱 방지
                 decodedElement.textContent = decodedMessage;
                 decodedElement.style.padding = "10px";
-                decodedElement.style.backgroundColor = "#dfffe0";
+                decodedElement.style.backgroundColor = "#e1eddf";
                 decodedElement.style.borderRadius = "4px";
-                decodedElement.style.marginBottom = "5px";
+                decodedElement.style.marginTop = "-10px";
+                decodedElement.style.marginBottom = "10px";
                 decodedElement.style.display = "none"; // 처음엔 숨김 처리
 
                 // 버튼 클릭 시 토글
                 toggleButton.addEventListener("click", () => {
                     if (decodedElement.style.display === "none") {
                         decodedElement.style.display = "block";
+                        toggleButton.style.backgroundColor = "#919191";
                         toggleButton.textContent = "🔒";
                     } else {
                         decodedElement.style.display = "none";
+                        toggleButton.style.backgroundColor = "#60cc54";
                         toggleButton.textContent = "🔓";
                     }
                 });
@@ -105,9 +128,8 @@ function sendMessage() {
         const match = targetMessage.match(/rj(\d+)/i);
         if (match) {
             const rjNumber = match[1];
-            messageWrapper.appendChild(createLinkButton("🧺", `https://www.dlsite.com/maniax/work/=/product_id/RJ${rjNumber}.html`));
-            messageWrapper.appendChild(createLinkButton("👂", `https://asmr.one/works?keyword=rj${rjNumber}`));
-            messageWrapper.appendChild(createLinkButton("🌑", `https://arca.live/b/simya?target=all&keyword=rj${rjNumber}`));
+            displayRJThumbnail(rjNumber, messageWrapper);
+            // RJ 썸네일 이미지를 생성하여 메시지에 추가
         }
 
         outputField.appendChild(messageWrapper);
@@ -116,7 +138,49 @@ function sendMessage() {
     }
 }
 
+// RJ 썸네일 이미지를 출력하는 함수
+function displayRJThumbnail(rjNumber, messageWrapper) {
+    const rjBaseNumber = rjNumber; // RJ 번호에서 숫자만 추출
 
+    const numberWithoutLastThree = rjBaseNumber.slice(0, -3); // 마지막 3자리 제거
+    const incrementedNumber = (parseInt(numberWithoutLastThree, 10) + 1).toString().padStart(numberWithoutLastThree.length, '0');
+
+    // 결과적으로 새로운 rjPrefix 생성
+    const rjPrefix = incrementedNumber + '000';
+
+    // 썸네일 이미지 URL 생성
+    const thumbnailUrl = `https://img.dlsite.jp/modpub/images2/work/doujin/RJ${rjPrefix}/RJ${rjBaseNumber}_img_main.webp`;
+
+    // console.log(thumbnailUrl);
+    // 이미지를 표시할 HTML 요소 생성
+    const imgElement = document.createElement("img");
+    imgElement.src = thumbnailUrl;
+    imgElement.alt = `RJ${rjBaseNumber} Thumbnail을 불러 올 수 없습니다.`;
+    imgElement.style.maxWidth = "200px"; // 썸네일 크기 조정
+    imgElement.style.marginTop = "0px";
+    imgElement.style.marginBottom = "10px";
+
+    // 이미지가 정상적으로 로드되지 않으면 오류 메시지를 출력
+    // imgElement.onerror = function() {
+    //     const errorMsg = document.createElement("div");
+    //     errorMsg.textContent = "썸네일을 불러올 수 없습니다.";
+    //     errorMsg.style.color = "red";
+    //     messageWrapper.appendChild(errorMsg);
+    // };
+
+    // 썸네일 이미지를 출력할 메시지에 추가
+    messageWrapper.appendChild(imgElement);
+
+    const buttonContainer = document.createElement("div");
+    buttonContainer.style.display = "block"; // 버튼들을 세로로 배치하도록 설정
+
+    // 링크 버튼들을 세로로 배치할 div 안에 추가
+    buttonContainer.appendChild(createLinkButton("🧺", `https://www.dlsite.com/maniax/work/=/product_id/RJ${rjBaseNumber}.html`));
+    buttonContainer.appendChild(createLinkButton("👂", `https://asmr.one/works?keyword=rj${rjBaseNumber}`));
+    buttonContainer.appendChild(createLinkButton("🌑", `https://arca.live/b/simya?target=all&keyword=rj${rjBaseNumber}`));
+
+    messageWrapper.appendChild(buttonContainer); // 메시지에 버튼들 추가
+}
 
 // 링크 버튼 생성 함수
 function createLinkButton(label, url) {
