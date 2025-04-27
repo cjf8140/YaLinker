@@ -8,30 +8,52 @@ document.getElementById("chat-input").addEventListener("keypress", function(even
 document.addEventListener("click", function(event) {
     const inputField = document.getElementById("chat-input");
 
-    // 클릭한 요소가 입력창, 버튼, 메시지, 링크가 아니라면 입력창으로 포커스 이동
     if (!event.target.closest("#chat-input, button, .message, a")) {
         inputField.focus();
     }
 });
 
+function safeBase64Decode(str) {
+    try {
+        // 끝에 '=' 여러 개 붙어 있으면 전부 제거하고,
+        // 다시 필요하면 적절하게 채워 넣기
+        str = str.replace(/=+$/, ''); // 끝의 = 전부 제거
+        const padding = str.length % 4;
+        if (padding === 2) {
+            str += '==';
+        } else if (padding === 3) {
+            str += '=';
+        } else if (padding !== 0) {
+            // 1일 경우 복구 불가 (잘못된 base64)
+            return null;
+        }
+        return atob(str);
+    } catch (e) {
+        return null;
+    }
+}
+// 개선된 Base64 체크 함수
 function isBase64(str) {
-    if (!str || str.length % 4 !== 0) {
+    if (!str) {
         return false;
     }
-    const base64Pattern = /^[A-Za-z0-9+/]+={0,2}$/;
+
+    const base64Pattern = /^[A-Za-z0-9+/]+={0,}$/;
     if (!base64Pattern.test(str)) {
         return false;
     }
 
     try {
-        // Base64 디코딩
-        const decoded = atob(str);
+        // 끝에 = 여러 개 있으면 무시하고 디코딩 시도
+        const decoded = safeBase64Decode(str);
+        if (!decoded) {
+            return false;
+        }
 
-        // 디코딩된 메시지가 정상적인 텍스트인지 확인
-        // 예: ASCII 범위 안에 있는지 체크
+        // 디코딩된 결과가 ASCII 범위인지 검사
         for (let i = 0; i < decoded.length; i++) {
-            if (decoded.charCodeAt(i) < 32 || decoded.charCodeAt(i) > 126) {
-                // 제어 문자나 비정상적인 문자가 포함되면 유효한 메시지가 아님
+            const charCode = decoded.charCodeAt(i);
+            if (charCode < 9 || (charCode > 13 && charCode < 32)) {
                 return false;
             }
         }
@@ -42,6 +64,7 @@ function isBase64(str) {
     }
 }
 
+
 function sendMessage() {
     const inputField = document.getElementById("chat-input");
     const outputField = document.getElementById("chat-output");
@@ -51,9 +74,8 @@ function sendMessage() {
         const messageWrapper = document.createElement("div");
         messageWrapper.style.marginBottom = "10px";
 
-        // 원본 메시지 출력
         const messageElement = document.createElement("div");
-        messageElement.classList.add("message"); // 클릭 시 자동 포커싱 방지
+        messageElement.classList.add("message");
         messageElement.textContent = message;
         messageElement.style.marginBottom = "10px";
         messageElement.style.padding = "10px";
@@ -64,45 +86,29 @@ function sendMessage() {
         let decodedMessage = null;
         if (isBase64(message)) {
             try {
-                decodedMessage = atob(message);
+                const paddedStr = message.padEnd(message.length + (4 - message.length % 4) % 4, '=');
+                decodedMessage = atob(paddedStr);
 
-                // 🔓 버튼 (토글 버튼)
                 const toggleButton = document.createElement("button");
                 toggleButton.textContent = "🔓";
+                toggleButton.classList.add("toggle-button");
 
-                toggleButton.style.marginTop = "-5px";
-                toggleButton.style.marginRight = "10px"; // 버튼 간격 추가
-                toggleButton.style.marginBottom = "10px"; // 버튼 간격 추가
-                toggleButton.style.padding = "8px 12px";
-                toggleButton.style.backgroundColor = "#83e079";
-                toggleButton.style.color = "white";
-                toggleButton.style.cursor = "pointer";
-                toggleButton.style.border = "none";
-                toggleButton.style.borderRadius = "4px";
-                toggleButton.style.textDecoration = "none";
-                toggleButton.style.fontSize = "14px";
-                toggleButton.style.transition = "background-color 0.2s ease";
-
-                // 디코딩된 메시지 (초기에는 숨김)
                 const decodedElement = document.createElement("div");
-                decodedElement.classList.add("message"); // 클릭 시 자동 포커싱 방지
+                decodedElement.classList.add("message");
                 decodedElement.textContent = decodedMessage;
                 decodedElement.style.padding = "10px";
                 decodedElement.style.backgroundColor = "#e1eddf";
                 decodedElement.style.borderRadius = "4px";
                 decodedElement.style.marginTop = "-10px";
                 decodedElement.style.marginBottom = "10px";
-                decodedElement.style.display = "none"; // 처음엔 숨김 처리
+                decodedElement.style.display = "none";
 
-                // 버튼 클릭 시 토글
                 toggleButton.addEventListener("click", () => {
                     if (decodedElement.style.display === "none") {
                         decodedElement.style.display = "block";
-                        toggleButton.style.backgroundColor = "#919191";
                         toggleButton.textContent = "🔒";
                     } else {
                         decodedElement.style.display = "none";
-                        toggleButton.style.backgroundColor = "#60cc54";
                         toggleButton.textContent = "🔓";
                     }
                 });
@@ -110,7 +116,7 @@ function sendMessage() {
                 messageWrapper.appendChild(toggleButton);
                 messageWrapper.appendChild(decodedElement);
 
-                // 디코딩된 메시지가 URL인지 확인
+                // 디코딩된 결과가 URL이면 링크 버튼 생성
                 if (/^(https?:\/\/[^\s]+)$/i.test(decodedMessage)) {
                     messageWrapper.appendChild(createLinkButton("B64LINK", decodedMessage));
                 }
@@ -119,17 +125,16 @@ function sendMessage() {
 
         const targetMessage = decodedMessage || message;
 
-        // Hitomi 링크 감지
+        // 7자리 숫자면 Hitomi 링크 추가
         if (/^\d{7}$/.test(targetMessage)) {
             messageWrapper.appendChild(createLinkButton("👁️", `https://hitomi.la/reader/${targetMessage}.html#1`));
         }
 
-        // rj숫자 패턴 감지
-        const match = targetMessage.match(/rj(\d+)/i);
-        if (match) {
-            const rjNumber = match[1];
+        // 개선된 RJ 감지 (rj, RJ, 대소문자 구분 없이)
+        const rjMatch = targetMessage.match(/(?:rj|RJ|거)(\d{6,7})/i);
+        if (rjMatch) {
+            const rjNumber = rjMatch[1];
             displayRJThumbnail(rjNumber, messageWrapper);
-            // RJ 썸네일 이미지를 생성하여 메시지에 추가
         }
 
         outputField.appendChild(messageWrapper);
@@ -138,60 +143,40 @@ function sendMessage() {
     }
 }
 
-// RJ 썸네일 이미지를 출력하는 함수
 function displayRJThumbnail(rjNumber, messageWrapper) {
-    const rjBaseNumber = rjNumber; // RJ 번호에서 숫자만 추출
-
-    const numberWithoutLastThree = rjBaseNumber.slice(0, -3); // 마지막 3자리 제거
+    const numberWithoutLastThree = rjNumber.slice(0, -3);
     const incrementedNumber = (parseInt(numberWithoutLastThree, 10) + 1).toString().padStart(numberWithoutLastThree.length, '0');
-
-    // 결과적으로 새로운 rjPrefix 생성
     const rjPrefix = incrementedNumber + '000';
 
-    // 썸네일 이미지 URL 생성
-    const thumbnailUrl = `https://img.dlsite.jp/modpub/images2/work/doujin/RJ${rjPrefix}/RJ${rjBaseNumber}_img_main.webp`;
+    const thumbnailUrl = `https://img.dlsite.jp/modpub/images2/work/doujin/RJ${rjPrefix}/RJ${rjNumber}_img_main.webp`;
 
-    // console.log(thumbnailUrl);
-    // 이미지를 표시할 HTML 요소 생성
     const imgElement = document.createElement("img");
     imgElement.src = thumbnailUrl;
-    imgElement.alt = `RJ${rjBaseNumber} Thumbnail을 불러 올 수 없습니다.`;
-    imgElement.style.maxWidth = "200px"; // 썸네일 크기 조정
+    imgElement.alt = `RJ${rjNumber} Thumbnail`;
+    imgElement.style.maxWidth = "200px";
     imgElement.style.marginTop = "0px";
     imgElement.style.marginBottom = "10px";
 
-    // 이미지가 정상적으로 로드되지 않으면 오류 메시지를 출력
-    // imgElement.onerror = function() {
-    //     const errorMsg = document.createElement("div");
-    //     errorMsg.textContent = "썸네일을 불러올 수 없습니다.";
-    //     errorMsg.style.color = "red";
-    //     messageWrapper.appendChild(errorMsg);
-    // };
-
-    // 썸네일 이미지를 출력할 메시지에 추가
     messageWrapper.appendChild(imgElement);
 
     const buttonContainer = document.createElement("div");
-    buttonContainer.style.display = "block"; // 버튼들을 세로로 배치하도록 설정
+    buttonContainer.style.display = "flex"; // flex 정렬
+    buttonContainer.style.flexWrap = "wrap"; // 줄바꿈 허용
+    buttonContainer.style.gap = "8px"; // 버튼 간격
 
-    // 링크 버튼들을 세로로 배치할 div 안에 추가
-    buttonContainer.appendChild(createLinkButton("🧺", `https://www.dlsite.com/maniax/work/=/product_id/RJ${rjBaseNumber}.html`));
-    buttonContainer.appendChild(createLinkButton("👂", `https://asmr.one/works?keyword=rj${rjBaseNumber}`));
-    buttonContainer.appendChild(createLinkButton("🌑", `https://arca.live/b/simya?target=all&keyword=rj${rjBaseNumber}`));
+    buttonContainer.appendChild(createLinkButton("🧺", `https://www.dlsite.com/maniax/work/=/product_id/RJ${rjNumber}.html`));
+    buttonContainer.appendChild(createLinkButton("👂", `https://asmr.one/works?keyword=rj${rjNumber}`));
+    buttonContainer.appendChild(createLinkButton("🌑", `https://arca.live/b/simya?target=all&keyword=rj${rjNumber}`));
 
-    messageWrapper.appendChild(buttonContainer); // 메시지에 버튼들 추가
+    messageWrapper.appendChild(buttonContainer);
 }
 
-// 링크 버튼 생성 함수
 function createLinkButton(label, url) {
     const linkButton = document.createElement("a");
     linkButton.href = url;
     linkButton.textContent = label;
-    linkButton.target = "_blank"; // 새 탭에서 열기
+    linkButton.target = "_blank";
     linkButton.style.display = "inline-block";
-    linkButton.style.marginTop = "-5px";
-    linkButton.style.marginRight = "10px"; // 버튼 간격 추가
-    linkButton.style.marginBottom = "10px"; // 버튼 간격 추가
     linkButton.style.padding = "8px 12px";
     linkButton.style.backgroundColor = "#333333";
     linkButton.style.color = "white";
@@ -200,7 +185,6 @@ function createLinkButton(label, url) {
     linkButton.style.fontSize = "14px";
     linkButton.style.transition = "background-color 0.2s ease";
 
-    // 호버 효과
     linkButton.addEventListener("mouseover", () => {
         linkButton.style.backgroundColor = "#4baef3";
     });
