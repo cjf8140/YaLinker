@@ -5,6 +5,17 @@ document.getElementById("chat-input").addEventListener("keypress", function(even
     }
 });
 
+document.getElementById("paste-clipboard-button").addEventListener("click", async function() {
+    try {
+        const text = await navigator.clipboard.readText();
+        if (text) {
+            document.getElementById("chat-input").value = text;
+        }
+    } catch (e) {
+        alert("클립보드 접근이 허용되지 않았습니다. 브라우저 권한을 확인하세요.");
+    }
+});
+
 document.addEventListener("click", function(event) {
     const inputField = document.getElementById("chat-input");
 
@@ -64,80 +75,74 @@ function isBase64(str) {
     }
 }
 
-
 function sendMessage() {
     const inputField = document.getElementById("chat-input");
     const outputField = document.getElementById("chat-output");
 
     const message = inputField.value.trim();
     if (message) {
-        const messageWrapper = document.createElement("div");
-        messageWrapper.style.marginBottom = "10px";
+        const parts = message.split(/\s+/); // 띄어쓰기를 기준으로 메시지 나누기
 
-        const messageElement = document.createElement("div");
-        messageElement.classList.add("message");
-        messageElement.textContent = message;
-        messageElement.style.marginBottom = "10px";
-        messageElement.style.padding = "10px";
-        messageElement.style.backgroundColor = "#eeeeee";
-        messageElement.style.borderRadius = "4px";
-        messageWrapper.appendChild(messageElement);
+        parts.forEach(part => {
+            const messageWrapper = document.createElement("div");
+            messageWrapper.classList.add("message-wrapper");
 
-        let decodedMessage = null;
-        if (isBase64(message)) {
-            try {
-                const paddedStr = message.padEnd(message.length + (4 - message.length % 4) % 4, '=');
-                decodedMessage = atob(paddedStr);
+            const messageElement = document.createElement("div");
+            messageElement.classList.add("message");
+            messageElement.textContent = part;
+            messageWrapper.appendChild(messageElement);
 
-                const toggleButton = document.createElement("button");
-                toggleButton.textContent = "🔓";
-                toggleButton.classList.add("toggle-button");
+            let decodedMessage = null;
 
-                const decodedElement = document.createElement("div");
-                decodedElement.classList.add("message");
-                decodedElement.textContent = decodedMessage;
-                decodedElement.style.padding = "10px";
-                decodedElement.style.backgroundColor = "#e1eddf";
-                decodedElement.style.borderRadius = "4px";
-                decodedElement.style.marginTop = "-10px";
-                decodedElement.style.marginBottom = "10px";
-                decodedElement.style.display = "none";
-
-                toggleButton.addEventListener("click", () => {
-                    if (decodedElement.style.display === "none") {
-                        decodedElement.style.display = "block";
-                        toggleButton.textContent = "🔒";
-                    } else {
-                        decodedElement.style.display = "none";
-                        toggleButton.textContent = "🔓";
-                    }
-                });
-
-                messageWrapper.appendChild(toggleButton);
-                messageWrapper.appendChild(decodedElement);
-
-                // 디코딩된 결과가 URL이면 링크 버튼 생성
-                if (/^(https?:\/\/[^\s]+)$/i.test(decodedMessage)) {
-                    messageWrapper.appendChild(createLinkButton("B64LINK", decodedMessage));
+            // 7자리 숫자면 Hitomi 링크 추가
+            if (/^\d{7}$/.test(part)) {
+                messageWrapper.appendChild(createLinkButton("👁️", `https://hitomi.la/galleries/${part}.html`));
+            }
+            // 개선된 RJ 감지 (rj, RJ, 대소문자 구분 없이)
+            else if (/(?:rj|RJ|거)(\d{6,7})/i.test(part)) {
+                const rjMatch = part.match(/(?:rj|RJ|거)(\d{6,7})/i);
+                if (rjMatch) {
+                    const rjNumber = rjMatch[1];
+                    displayRJThumbnail(rjNumber, messageWrapper);
                 }
-            } catch (error) {}
-        }
+            }
+            // Base64 처리
+            else if (isBase64(part)) {
+                try {
+                    const paddedStr = part.padEnd(part.length + (4 - part.length % 4) % 4, '=');
+                    decodedMessage = atob(paddedStr);
 
-        const targetMessage = decodedMessage || message;
+                    const toggleButton = document.createElement("button");
+                    toggleButton.textContent = "🔓";
+                    toggleButton.classList.add("toggle-button");
 
-        // 7자리 숫자면 Hitomi 링크 추가
-        if (/^\d{7}$/.test(targetMessage)) {
-            messageWrapper.appendChild(createLinkButton("👁️", `https://hitomi.la/reader/${targetMessage}.html#1`));
-        }
+                    const decodedElement = document.createElement("div");
+                    decodedElement.classList.add("decoded-message");
+                    decodedElement.textContent = decodedMessage;
 
-        // 개선된 RJ 감지 (rj, RJ, 대소문자 구분 없이)
-        const rjMatch = targetMessage.match(/(?:rj|RJ|거)(\d{6,7})/i);
-        if (rjMatch) {
-            const rjNumber = rjMatch[1];
-            displayRJThumbnail(rjNumber, messageWrapper);
-        }
+                    toggleButton.addEventListener("click", () => {
+                        if (decodedElement.style.display === "none") {
+                            decodedElement.style.display = "block";
+                            toggleButton.textContent = "🔒";
+                        } else {
+                            decodedElement.style.display = "none";
+                            toggleButton.textContent = "🔓";
+                        }
+                    });
 
-        outputField.appendChild(messageWrapper);
+                    messageWrapper.appendChild(toggleButton);
+                    messageWrapper.appendChild(decodedElement);
+
+                    // 디코딩된 결과가 URL이면 링크 버튼 생성
+                    if (/^(https?:\/\/[^\s]+)$/i.test(decodedMessage)) {
+                        messageWrapper.appendChild(createLinkButton("B64LINK", decodedMessage));
+                    }
+                } catch (error) {}
+            }
+
+            outputField.appendChild(messageWrapper);
+        });
+
         outputField.scrollTop = outputField.scrollHeight;
         inputField.value = "";
     }
@@ -152,22 +157,15 @@ function displayRJThumbnail(rjNumber, messageWrapper) {
 
     const imgElement = document.createElement("img");
     imgElement.src = thumbnailUrl;
-    imgElement.alt = `RJ${rjNumber} Thumbnail`;
-    imgElement.style.maxWidth = "200px";
-    imgElement.style.marginTop = "0px";
-    imgElement.style.marginBottom = "10px";
-
+    imgElement.alt = `존재하지 않습니다.`;
+    imgElement.classList.add("rj-thumbnail");
     messageWrapper.appendChild(imgElement);
 
     const buttonContainer = document.createElement("div");
-    buttonContainer.style.display = "flex"; // flex 정렬
-    buttonContainer.style.flexWrap = "wrap"; // 줄바꿈 허용
-    buttonContainer.style.gap = "8px"; // 버튼 간격
-
-    buttonContainer.appendChild(createLinkButton("🧺", `https://www.dlsite.com/maniax/work/=/product_id/RJ${rjNumber}.html`));
+    buttonContainer.classList.add("button-container");
+    buttonContainer.appendChild(createLinkButton("🏬", `https://www.dlsite.com/maniax/work/=/product_id/RJ${rjNumber}.html`));
     buttonContainer.appendChild(createLinkButton("👂", `https://asmr.one/works?keyword=rj${rjNumber}`));
     buttonContainer.appendChild(createLinkButton("🌑", `https://arca.live/b/simya?target=all&keyword=rj${rjNumber}`));
-
     messageWrapper.appendChild(buttonContainer);
 }
 
@@ -176,21 +174,6 @@ function createLinkButton(label, url) {
     linkButton.href = url;
     linkButton.textContent = label;
     linkButton.target = "_blank";
-    linkButton.style.display = "inline-block";
-    linkButton.style.padding = "8px 12px";
-    linkButton.style.backgroundColor = "#333333";
-    linkButton.style.color = "white";
-    linkButton.style.borderRadius = "4px";
-    linkButton.style.textDecoration = "none";
-    linkButton.style.fontSize = "14px";
-    linkButton.style.transition = "background-color 0.2s ease";
-
-    linkButton.addEventListener("mouseover", () => {
-        linkButton.style.backgroundColor = "#4baef3";
-    });
-    linkButton.addEventListener("mouseout", () => {
-        linkButton.style.backgroundColor = "#333333";
-    });
-
+    linkButton.classList.add("link-button");
     return linkButton;
 }
