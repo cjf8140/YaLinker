@@ -1,7 +1,7 @@
-document.getElementById("send-button").addEventListener("click", sendMessage);
+document.getElementById("send-button").addEventListener("click", handleMessageSend);
 document.getElementById("chat-input").addEventListener("keypress", function(event) {
     if (event.key === "Enter") {
-        sendMessage();
+        handleMessageSend();
     }
 });
 
@@ -24,18 +24,15 @@ document.addEventListener("click", function(event) {
     }
 });
 
-function safeBase64Decode(str) {
+function decodeBase64Safely(str) {
     try {
-        // 끝에 '=' 여러 개 붙어 있으면 전부 제거하고,
-        // 다시 필요하면 적절하게 채워 넣기
-        str = str.replace(/=+$/, ''); // 끝의 = 전부 제거
+        str = str.replace(/=+$/, '');
         const padding = str.length % 4;
         if (padding === 2) {
             str += '==';
         } else if (padding === 3) {
             str += '=';
         } else if (padding !== 0) {
-            // 1일 경우 복구 불가 (잘못된 base64)
             return null;
         }
         return atob(str);
@@ -43,8 +40,8 @@ function safeBase64Decode(str) {
         return null;
     }
 }
-// 개선된 Base64 체크 함수
-function isBase64(str) {
+
+function isValidBase64(str) {
     if (!str) {
         return false;
     }
@@ -55,13 +52,11 @@ function isBase64(str) {
     }
 
     try {
-        // 끝에 = 여러 개 있으면 무시하고 디코딩 시도
-        const decoded = safeBase64Decode(str);
+        const decoded = decodeBase64Safely(str);
         if (!decoded) {
             return false;
         }
 
-        // 디코딩된 결과가 ASCII 범위인지 검사
         for (let i = 0; i < decoded.length; i++) {
             const charCode = decoded.charCodeAt(i);
             if (charCode < 9 || (charCode > 13 && charCode < 32)) {
@@ -75,72 +70,66 @@ function isBase64(str) {
     }
 }
 
-function sendMessage() {
+function handleMessageSend() {
     const inputField = document.getElementById("chat-input");
     const outputField = document.getElementById("chat-output");
 
     const message = inputField.value.trim();
     if (message) {
-        const parts = message.split(/\s+/); // 띄어쓰기를 기준으로 메시지 나누기
+        const parts = message.split(/\s+/);
 
         parts.forEach(part => {
-            const messageWrapper = document.createElement("div");
-            messageWrapper.classList.add("message-wrapper");
+            const partWrapper = document.createElement("div");
+            partWrapper.classList.add("message-wrapper");
 
-            const messageElement = document.createElement("div");
-            messageElement.classList.add("message");
-            messageElement.textContent = part;
-            messageWrapper.appendChild(messageElement);
+            const partMessage = document.createElement("div");
+            partMessage.classList.add("message");
+            partMessage.textContent = part;
+            partWrapper.appendChild(partMessage);
 
             let decodedMessage = null;
 
-            // 7자리 숫자면 Hitomi 링크 추가
             if (/^\d{7}$/.test(part)) {
-                messageWrapper.appendChild(createLinkButton("👁️", `https://hitomi.la/galleries/${part}.html`));
-            }
-            // 개선된 RJ 감지 (rj, RJ, 대소문자 구분 없이)
-            else if (/(?:rj|RJ|거)(\d{6,7})/i.test(part)) {
+                partWrapper.appendChild(createStyledLinkButton("👁️", `https://hitomi.la/galleries/${part}.html`));
+            } else if (/(?:rj|RJ|거)(\d{6,7})/i.test(part)) {
                 const rjMatch = part.match(/(?:rj|RJ|거)(\d{6,7})/i);
                 if (rjMatch) {
                     const rjNumber = rjMatch[1];
-                    displayRJThumbnail(rjNumber, messageWrapper);
+                    renderRJThumbnail(rjNumber, partWrapper);
                 }
-            }
-            // Base64 처리
-            else if (isBase64(part)) {
+            } else if (isValidBase64(part)) {
                 try {
                     const paddedStr = part.padEnd(part.length + (4 - part.length % 4) % 4, '=');
                     decodedMessage = atob(paddedStr);
 
-                    const toggleButton = document.createElement("button");
-                    toggleButton.textContent = "🔓";
-                    toggleButton.classList.add("toggle-button");
+                    const toggleDecodedButton = document.createElement("button");
+                    toggleDecodedButton.textContent = "🔓";
+                    toggleDecodedButton.classList.add("toggle-button");
 
-                    const decodedElement = document.createElement("div");
-                    decodedElement.classList.add("decoded-message");
-                    decodedElement.textContent = decodedMessage;
+                    const decodedMessageDiv = document.createElement("div");
+                    decodedMessageDiv.classList.add("decoded-message");
+                    decodedMessageDiv.textContent = decodedMessage;
 
-                    toggleButton.addEventListener("click", () => {
-                        if (decodedElement.style.display === "none") {
-                            decodedElement.style.display = "block";
-                            toggleButton.textContent = "🔒";
+                    toggleDecodedButton.addEventListener("click", () => {
+                        if (decodedMessageDiv.style.display === "none") {
+                            decodedMessageDiv.style.display = "block";
+                            toggleDecodedButton.textContent = "🔒";
                         } else {
-                            decodedElement.style.display = "none";
-                            toggleButton.textContent = "🔓";
+                            decodedMessageDiv.style.display = "none";
+                            toggleDecodedButton.textContent = "🔓";
                         }
                     });
 
-                    messageWrapper.appendChild(toggleButton);
-                    messageWrapper.appendChild(decodedElement);
+                    partWrapper.appendChild(toggleDecodedButton);
+                    partWrapper.appendChild(decodedMessageDiv);
 
-                    // 디코딩된 결과가 URL이면 링크 버튼 생성
                     if (/^(https?:\/\/[^\s]+)$/i.test(decodedMessage)) {
-                        messageWrapper.appendChild(createLinkButton("B64LINK", decodedMessage));
+                        partWrapper.appendChild(createStyledLinkButton("B64LINK", decodedMessage));
                     }
                 } catch (error) {}
             }
 
-            outputField.appendChild(messageWrapper);
+            outputField.appendChild(partWrapper);
         });
 
         outputField.scrollTop = outputField.scrollHeight;
@@ -148,7 +137,7 @@ function sendMessage() {
     }
 }
 
-function displayRJThumbnail(rjNumber, messageWrapper) {
+function renderRJThumbnail(rjNumber, partWrapper) {
     const numberWithoutLastThree = rjNumber.slice(0, -3);
     const incrementedNumber = (parseInt(numberWithoutLastThree, 10) + 1).toString().padStart(numberWithoutLastThree.length, '0');
     const rjPrefix = incrementedNumber + '000';
@@ -159,17 +148,17 @@ function displayRJThumbnail(rjNumber, messageWrapper) {
     imgElement.src = thumbnailUrl;
     imgElement.alt = `존재하지 않습니다.`;
     imgElement.classList.add("rj-thumbnail");
-    messageWrapper.appendChild(imgElement);
+    partWrapper.appendChild(imgElement);
 
-    const buttonContainer = document.createElement("div");
-    buttonContainer.classList.add("button-container");
-    buttonContainer.appendChild(createLinkButton("🏬", `https://www.dlsite.com/maniax/work/=/product_id/RJ${rjNumber}.html`));
-    buttonContainer.appendChild(createLinkButton("👂", `https://asmr.one/works?keyword=rj${rjNumber}`));
-    buttonContainer.appendChild(createLinkButton("🌑", `https://arca.live/b/simya?target=all&keyword=rj${rjNumber}`));
-    messageWrapper.appendChild(buttonContainer);
+    const rjLinkButtonGroup = document.createElement("div");
+    rjLinkButtonGroup.classList.add("button-container");
+    rjLinkButtonGroup.appendChild(createStyledLinkButton("🏬", `https://www.dlsite.com/maniax/work/=/product_id/RJ${rjNumber}.html`));
+    rjLinkButtonGroup.appendChild(createStyledLinkButton("👂", `https://asmr.one/works?keyword=rj${rjNumber}`));
+    rjLinkButtonGroup.appendChild(createStyledLinkButton("🌑", `https://arca.live/b/simya?target=all&keyword=rj${rjNumber}`));
+    partWrapper.appendChild(rjLinkButtonGroup);
 }
 
-function createLinkButton(label, url) {
+function createStyledLinkButton(label, url) {
     const linkButton = document.createElement("a");
     linkButton.href = url;
     linkButton.textContent = label;
