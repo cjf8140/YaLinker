@@ -1,3 +1,105 @@
+// Helper function to encode messages in Base64
+function encodeMessagesToBase64(messages) {
+    return btoa(JSON.stringify(messages));
+}
+
+// Helper function to decode messages from Base64
+function decodeMessagesFromBase64(encodedMessages) {
+    try {
+        return JSON.parse(atob(encodedMessages));
+    } catch (e) {
+        return [];
+    }
+}
+
+// Helper function to get messages from the URL
+function getMessagesFromURL() {
+    const params = new URLSearchParams(window.location.search);
+    const encodedMessages = params.get('a'); // Use 'a' as the tag name
+    return encodedMessages ? decodeMessagesFromBase64(encodedMessages) : [];
+}
+
+// Helper function to set messages to the URL
+function setMessagesToURL(messages) {
+    const params = new URLSearchParams(window.location.search);
+    params.set('a', encodeMessagesToBase64(messages)); // Use 'a' as the tag name
+    window.history.replaceState({}, '', `${window.location.pathname}?${params.toString()}`);
+}
+
+// Function to render a single message in the chat window
+function renderMessage(message) {
+    const outputField = document.getElementById("chat-output");
+    const partWrapper = document.createElement("div");
+    partWrapper.classList.add("message-wrapper");
+
+    const partMessage = document.createElement("div");
+    partMessage.classList.add("message");
+    partMessage.textContent = message;
+    partWrapper.appendChild(partMessage);
+
+    let decodedMessage = null;
+
+    if (/^\d{7}$/.test(message)) {
+        partWrapper.appendChild(createStyledLinkButton("👁️", `https://hitomi.la/galleries/${message}.html`));
+    } else if (/(?:rj|RJ|거)(\d+)/i.test(message)) {
+        const rjMatch = message.match(/(?:rj|RJ|거)(\d+)/i);
+        if (rjMatch) {
+            const rjNumber = rjMatch[1];
+            renderRJThumbnail(rjNumber, partWrapper);
+        }
+    } else if (isValidBase64(message)) {
+        try {
+            const paddedStr = message.padEnd(message.length + (4 - message.length % 4) % 4, '=');
+            decodedMessage = atob(paddedStr);
+
+            const decodedMessageDiv = document.createElement("div");
+            decodedMessageDiv.classList.add("decoded-message");
+            decodedMessageDiv.textContent = decodedMessage;
+            decodedMessageDiv.style.display = "block";
+            decodedMessageDiv.style.cursor = "pointer";
+            decodedMessageDiv.title = "클릭하면 복사됩니다";
+            decodedMessageDiv.addEventListener("click", async function() {
+                try {
+                    await navigator.clipboard.writeText(decodedMessage);
+                    decodedMessageDiv.title = "복사됨!";
+                    setTimeout(() => { decodedMessageDiv.title = "클릭하면 복사됩니다"; }, 1000);
+                } catch (e) {
+                    decodedMessageDiv.title = "복사 실패";
+                }
+            });
+            partWrapper.appendChild(decodedMessageDiv);
+
+            if (/^(https?:\/\/[^\s]+|www\.[^\s]+)$/i.test(decodedMessage)) {
+                partWrapper.appendChild(createStyledLinkButton("B64LINK", decodedMessage));
+            }
+        } catch (error) {}
+    }
+
+    outputField.appendChild(partWrapper);
+}
+
+// Function to render all messages in the chat window
+function renderAllMessages(messages) {
+    const outputField = document.getElementById("chat-output");
+    outputField.innerHTML = ""; // Clear existing messages
+    messages.forEach(renderMessage);
+    outputField.scrollTop = outputField.scrollHeight; // Scroll to bottom
+}
+
+// 입력값을 URL에 저장 (최신 메시지만)
+window.addEventListener('DOMContentLoaded', () => {
+    const inputField = document.getElementById('chat-input');
+    inputField.value = ''; // Clear any pre-filled value
+
+    const params = new URLSearchParams(window.location.search);
+    const q = params.get('q');
+    if (q) {
+        document.getElementById('chat-input').value = q;
+    }
+
+    const messages = getMessagesFromURL();
+    renderAllMessages(messages);
+});
 document.getElementById("send-button").addEventListener("click", handleMessageSend);
 document.getElementById("chat-input").addEventListener("keypress", function(event) {
     if (event.key === "Enter") {
@@ -62,65 +164,16 @@ function isValidBase64(str) {
 
 function handleMessageSend() {
     const inputField = document.getElementById("chat-input");
-    const outputField = document.getElementById("chat-output");
-
     const message = inputField.value.trim();
+
     if (message) {
-        const parts = message.split(/\s+/);
+        const messages = getMessagesFromURL();
+        messages.push(message);
+        setMessagesToURL(messages);
+        renderMessage(message);
 
-        parts.forEach(part => {
-            const partWrapper = document.createElement("div");
-            partWrapper.classList.add("message-wrapper");
-
-            const partMessage = document.createElement("div");
-            partMessage.classList.add("message");
-            partMessage.textContent = part;
-            partWrapper.appendChild(partMessage);
-
-            let decodedMessage = null;
-
-            if (/^\d{7}$/.test(part)) {
-                partWrapper.appendChild(createStyledLinkButton("👁️", `https://hitomi.la/galleries/${part}.html`));
-            } else if (/(?:rj|RJ|거)(\d+)/i.test(part)) {
-                const rjMatch = part.match(/(?:rj|RJ|거)(\d+)/i);
-                if (rjMatch) {
-                    const rjNumber = rjMatch[1];
-                    renderRJThumbnail(rjNumber, partWrapper);
-                }
-            } else if (isValidBase64(part)) {
-                try {
-                    const paddedStr = part.padEnd(part.length + (4 - part.length % 4) % 4, '=');
-                    decodedMessage = atob(paddedStr);
-
-
-
-                    const decodedMessageDiv = document.createElement("div");
-                    decodedMessageDiv.classList.add("decoded-message");
-                    decodedMessageDiv.textContent = decodedMessage;
-                    decodedMessageDiv.style.display = "block";
-                    decodedMessageDiv.style.cursor = "pointer";
-                    decodedMessageDiv.title = "클릭하면 복사됩니다";
-                    decodedMessageDiv.addEventListener("click", async function() {
-                        try {
-                            await navigator.clipboard.writeText(decodedMessage);
-                            decodedMessageDiv.title = "복사됨!";
-                            setTimeout(() => { decodedMessageDiv.title = "클릭하면 복사됩니다"; }, 1000);
-                        } catch (e) {
-                            decodedMessageDiv.title = "복사 실패";
-                        }
-                    });
-                    partWrapper.appendChild(decodedMessageDiv);
-
-                    if (/^(https?:\/\/[^\s]+|www\.[^\s]+)$/i.test(decodedMessage)) {
-                        partWrapper.appendChild(createStyledLinkButton("B64LINK", decodedMessage));
-                    }
-                } catch (error) {}
-            }
-
-            outputField.appendChild(partWrapper);
-        });
-
-        outputField.scrollTop = outputField.scrollHeight;
+        const outputField = document.getElementById("chat-output");
+        outputField.scrollTop = outputField.scrollHeight; // Scroll to bottom
         inputField.value = "";
     }
 }
@@ -154,3 +207,17 @@ function createStyledLinkButton(label, url) {
     linkButton.classList.add("link-button");
     return linkButton;
 }
+
+// Function to clear all messages
+function clearMessages() {
+    setMessagesToURL([]); // Clear messages in the URL
+    renderAllMessages([]); // Clear messages in the chat window
+}
+
+// Add event listener for the clear button
+window.addEventListener('DOMContentLoaded', () => {
+    const clearButton = document.getElementById('clear-button');
+    if (clearButton) {
+        clearButton.addEventListener('click', clearMessages);
+    }
+});
