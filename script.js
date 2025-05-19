@@ -9,7 +9,7 @@ document.getElementById("chat-input").addEventListener("keypress", function(even
 document.addEventListener("click", function(event) {
     const inputField = document.getElementById("chat-input");
 
-    if (!event.target.closest("#chat-input, button, .message, a")) {
+    if (!event.target.closest("#chat-input, button, .message, a, .decoded-message")) {
         inputField.focus();
     }
 });
@@ -92,28 +92,26 @@ function handleMessageSend() {
                     const paddedStr = part.padEnd(part.length + (4 - part.length % 4) % 4, '=');
                     decodedMessage = atob(paddedStr);
 
-                    const toggleDecodedButton = document.createElement("button");
-                    toggleDecodedButton.textContent = "🔓";
-                    toggleDecodedButton.classList.add("toggle-button");
+
 
                     const decodedMessageDiv = document.createElement("div");
                     decodedMessageDiv.classList.add("decoded-message");
                     decodedMessageDiv.textContent = decodedMessage;
-
-                    toggleDecodedButton.addEventListener("click", () => {
-                        if (decodedMessageDiv.style.display === "none") {
-                            decodedMessageDiv.style.display = "block";
-                            toggleDecodedButton.textContent = "🔒";
-                        } else {
-                            decodedMessageDiv.style.display = "none";
-                            toggleDecodedButton.textContent = "🔓";
+                    decodedMessageDiv.style.display = "block";
+                    decodedMessageDiv.style.cursor = "pointer";
+                    decodedMessageDiv.title = "클릭하면 복사됩니다";
+                    decodedMessageDiv.addEventListener("click", async function() {
+                        try {
+                            await navigator.clipboard.writeText(decodedMessage);
+                            decodedMessageDiv.title = "복사됨!";
+                            setTimeout(() => { decodedMessageDiv.title = "클릭하면 복사됩니다"; }, 1000);
+                        } catch (e) {
+                            decodedMessageDiv.title = "복사 실패";
                         }
                     });
-
-                    partWrapper.appendChild(toggleDecodedButton);
                     partWrapper.appendChild(decodedMessageDiv);
 
-                    if (/^(https?:\/\/[^\s]+)$/i.test(decodedMessage)) {
+                    if (/^(https?:\/\/[^\s]+|www\.[^\s]+)$/i.test(decodedMessage)) {
                         partWrapper.appendChild(createStyledLinkButton("B64LINK", decodedMessage));
                     }
                 } catch (error) {}
