@@ -43,7 +43,7 @@ function renderMessage(message) {
     const partWrapper = document.createElement("div");
     partWrapper.classList.add("message-wrapper");
 
-    if (message === "링크") {
+    if (message === "link") {
         const links = [
             "https://www.youtube.com/",
             "https://kone.gg/",
