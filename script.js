@@ -5,16 +5,6 @@ document.getElementById("chat-input").addEventListener("keypress", function(even
     }
 });
 
-document.getElementById("paste-clipboard-button").addEventListener("click", async function() {
-    try {
-        const text = await navigator.clipboard.readText();
-        if (text) {
-            document.getElementById("chat-input").value = text;
-        }
-    } catch (e) {
-        alert("클립보드 접근이 허용되지 않았습니다. 브라우저 권한을 확인하세요.");
-    }
-});
 
 document.addEventListener("click", function(event) {
     const inputField = document.getElementById("chat-input");
@@ -91,8 +81,8 @@ function handleMessageSend() {
 
             if (/^\d{7}$/.test(part)) {
                 partWrapper.appendChild(createStyledLinkButton("👁️", `https://hitomi.la/galleries/${part}.html`));
-            } else if (/(?:rj|RJ|거)(\d{6,7})/i.test(part)) {
-                const rjMatch = part.match(/(?:rj|RJ|거)(\d{6,7})/i);
+            } else if (/(?:rj|RJ|거)(\d+)/i.test(part)) {
+                const rjMatch = part.match(/(?:rj|RJ|거)(\d+)/i);
                 if (rjMatch) {
                     const rjNumber = rjMatch[1];
                     renderRJThumbnail(rjNumber, partWrapper);
@@ -154,7 +144,7 @@ function renderRJThumbnail(rjNumber, partWrapper) {
     rjLinkButtonGroup.classList.add("button-container");
     rjLinkButtonGroup.appendChild(createStyledLinkButton("🏬", `https://www.dlsite.com/maniax/work/=/product_id/RJ${rjNumber}.html`));
     rjLinkButtonGroup.appendChild(createStyledLinkButton("👂", `https://asmr.one/works?keyword=rj${rjNumber}`));
-    rjLinkButtonGroup.appendChild(createStyledLinkButton("🌑", `https://arca.live/b/simya?target=all&keyword=rj${rjNumber}`));
+    rjLinkButtonGroup.appendChild(createStyledLinkButton("👃", `https://kone.gg/search?k=rj${rjNumber}`));
     partWrapper.appendChild(rjLinkButtonGroup);
 }
 
