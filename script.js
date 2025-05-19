@@ -1,12 +1,18 @@
-// Helper function to encode messages in Base64
+// Helper function to encode messages in Base64 with UTF-8 support
 function encodeMessagesToBase64(messages) {
-    return btoa(JSON.stringify(messages));
+    const utf8Encoder = new TextEncoder();
+    const uint8Array = utf8Encoder.encode(JSON.stringify(messages));
+    const binaryString = Array.from(uint8Array).map(byte => String.fromCharCode(byte)).join('');
+    return btoa(binaryString);
 }
 
-// Helper function to decode messages from Base64
+// Helper function to decode messages from Base64 with UTF-8 support
 function decodeMessagesFromBase64(encodedMessages) {
     try {
-        return JSON.parse(atob(encodedMessages));
+        const binaryString = atob(encodedMessages);
+        const uint8Array = new Uint8Array(binaryString.split('').map(char => char.charCodeAt(0)));
+        const utf8Decoder = new TextDecoder();
+        return JSON.parse(utf8Decoder.decode(uint8Array));
     } catch (e) {
         return [];
     }
@@ -32,47 +38,76 @@ function renderMessage(message) {
     const partWrapper = document.createElement("div");
     partWrapper.classList.add("message-wrapper");
 
-    const partMessage = document.createElement("div");
-    partMessage.classList.add("message");
-    partMessage.textContent = message;
-    partWrapper.appendChild(partMessage);
+    if (message === "링크") {
+        const links = [
+            "https://www.youtube.com/",
+            "https://kone.gg/",
+            "https://arca.live/",
+            "https://www.dlsite.com/index.html",
+            "https://x.com/home",
+            "https://www.yako.gg/",
+            "https://asmr.one/works",
+            "https://kemono.su/",
+            "https://www.pixiv.net/",
+            "https://123av.com/ko/",
+            "https://www.pornhub.com/",
+            "https://newtoki.me/%eb%89%b4%ed%86%a0%ed%82%a4-%ec%b5%9c%ec%8b%a0-%ec%a3%bc%ec%86%8c/",
+            "https://www.base64decode.org/",
+            "https://hitomi.la/"
+        ];
 
-    let decodedMessage = null;
+        links.forEach(link => {
+            const linkElement = document.createElement("a");
+            linkElement.href = link;
+            linkElement.textContent = link;
+            linkElement.target = "_blank";
+            linkElement.classList.add("link-button");
+            partWrapper.appendChild(linkElement);
+            partWrapper.appendChild(document.createElement("br"));
+        });
+    } else {
+        const partMessage = document.createElement("div");
+        partMessage.classList.add("message");
+        partMessage.textContent = message;
+        partWrapper.appendChild(partMessage);
 
-    if (/^\d{7}$/.test(message)) {
-        partWrapper.appendChild(createStyledLinkButton("👁️", `https://hitomi.la/galleries/${message}.html`));
-    } else if (/(?:rj|RJ|거)(\d+)/i.test(message)) {
-        const rjMatch = message.match(/(?:rj|RJ|거)(\d+)/i);
-        if (rjMatch) {
-            const rjNumber = rjMatch[1];
-            renderRJThumbnail(rjNumber, partWrapper);
-        }
-    } else if (isValidBase64(message)) {
-        try {
-            const paddedStr = message.padEnd(message.length + (4 - message.length % 4) % 4, '=');
-            decodedMessage = atob(paddedStr);
+        let decodedMessage = null;
 
-            const decodedMessageDiv = document.createElement("div");
-            decodedMessageDiv.classList.add("decoded-message");
-            decodedMessageDiv.textContent = decodedMessage;
-            decodedMessageDiv.style.display = "block";
-            decodedMessageDiv.style.cursor = "pointer";
-            decodedMessageDiv.title = "클릭하면 복사됩니다";
-            decodedMessageDiv.addEventListener("click", async function() {
-                try {
-                    await navigator.clipboard.writeText(decodedMessage);
-                    decodedMessageDiv.title = "복사됨!";
-                    setTimeout(() => { decodedMessageDiv.title = "클릭하면 복사됩니다"; }, 1000);
-                } catch (e) {
-                    decodedMessageDiv.title = "복사 실패";
-                }
-            });
-            partWrapper.appendChild(decodedMessageDiv);
-
-            if (/^(https?:\/\/[^\s]+|www\.[^\s]+)$/i.test(decodedMessage)) {
-                partWrapper.appendChild(createStyledLinkButton("B64LINK", decodedMessage));
+        if (/^\d{7}$/.test(message)) {
+            partWrapper.appendChild(createStyledLinkButton("👁️", `https://hitomi.la/galleries/${message}.html`));
+        } else if (/(?:rj|RJ|거)(\d+)/i.test(message)) {
+            const rjMatch = message.match(/(?:rj|RJ|거)(\d+)/i);
+            if (rjMatch) {
+                const rjNumber = rjMatch[1];
+                renderRJThumbnail(rjNumber, partWrapper);
             }
-        } catch (error) {}
+        } else if (isValidBase64(message)) {
+            try {
+                const paddedStr = message.padEnd(message.length + (4 - message.length % 4) % 4, '=');
+                decodedMessage = atob(paddedStr);
+
+                const decodedMessageDiv = document.createElement("div");
+                decodedMessageDiv.classList.add("decoded-message");
+                decodedMessageDiv.textContent = decodedMessage;
+                decodedMessageDiv.style.display = "block";
+                decodedMessageDiv.style.cursor = "pointer";
+                decodedMessageDiv.title = "클릭하면 복사됩니다";
+                decodedMessageDiv.addEventListener("click", async function() {
+                    try {
+                        await navigator.clipboard.writeText(decodedMessage);
+                        decodedMessageDiv.title = "복사됨!";
+                        setTimeout(() => { decodedMessageDiv.title = "클릭하면 복사됩니다"; }, 1000);
+                    } catch (e) {
+                        decodedMessageDiv.title = "복사 실패";
+                    }
+                });
+                partWrapper.appendChild(decodedMessageDiv);
+
+                if (/^(https?:\/\/[^\s]+|www\.[^\s]+)$/i.test(decodedMessage)) {
+                    partWrapper.appendChild(createStyledLinkButton("B64LINK", decodedMessage));
+                }
+            } catch (error) {}
+        }
     }
 
     outputField.appendChild(partWrapper);
