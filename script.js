@@ -2,7 +2,8 @@
 function encodeMessagesToBase64(messages) {
     try {
         const jsonString = JSON.stringify(messages);
-        return btoa(unescape(encodeURIComponent(jsonString)));
+        const utf8Bytes = new TextEncoder().encode(jsonString);
+        return btoa(String.fromCharCode(...utf8Bytes));
     } catch (e) {
         console.error("Failed to encode messages to Base64:", e);
         return "";
@@ -12,7 +13,9 @@ function encodeMessagesToBase64(messages) {
 // Helper function to decode messages from Base64 with UTF-8 support
 function decodeMessagesFromBase64(encodedMessages) {
     try {
-        const jsonString = decodeURIComponent(escape(atob(encodedMessages)));
+        const binaryString = atob(encodedMessages);
+        const utf8Bytes = new Uint8Array([...binaryString].map(char => char.charCodeAt(0)));
+        const jsonString = new TextDecoder().decode(utf8Bytes);
         return JSON.parse(jsonString);
     } catch (e) {
         console.error("Failed to decode messages from Base64:", e);
