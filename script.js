@@ -1,19 +1,21 @@
 // Helper function to encode messages in Base64 with UTF-8 support
 function encodeMessagesToBase64(messages) {
-    const utf8Encoder = new TextEncoder();
-    const uint8Array = utf8Encoder.encode(JSON.stringify(messages));
-    const binaryString = Array.from(uint8Array).map(byte => String.fromCharCode(byte)).join('');
-    return btoa(binaryString);
+    try {
+        const jsonString = JSON.stringify(messages);
+        return btoa(unescape(encodeURIComponent(jsonString)));
+    } catch (e) {
+        console.error("Failed to encode messages to Base64:", e);
+        return "";
+    }
 }
 
 // Helper function to decode messages from Base64 with UTF-8 support
 function decodeMessagesFromBase64(encodedMessages) {
     try {
-        const binaryString = atob(encodedMessages);
-        const uint8Array = new Uint8Array(binaryString.split('').map(char => char.charCodeAt(0)));
-        const utf8Decoder = new TextDecoder();
-        return JSON.parse(utf8Decoder.decode(uint8Array));
+        const jsonString = decodeURIComponent(escape(atob(encodedMessages)));
+        return JSON.parse(jsonString);
     } catch (e) {
+        console.error("Failed to decode messages from Base64:", e);
         return [];
     }
 }
