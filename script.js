@@ -54,7 +54,6 @@ function renderMessage(message) {
             "https://kemono.su/",
             "https://www.pixiv.net/",
             "https://www.pornhub.com/",
-            "https://newtoki.me/%eb%89%b4%ed%86%a0%ed%82%a4-%ec%b5%9c%ec%8b%a0-%ec%a3%bc%ec%86%8c/",
             "https://www.base64decode.org/",
             "https://hitomi.la/"
         ];
